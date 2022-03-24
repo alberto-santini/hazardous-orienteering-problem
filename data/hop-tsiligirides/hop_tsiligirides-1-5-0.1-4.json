@@ -1,0 +1,195 @@
+{
+    "n_vertices": 31,
+    "n_customers": 30,
+    "distance_f": "exact_euclidean",
+    "depot_id": 0,
+    "time_bound": 5.0,
+    "vertices": [
+        {
+            "x_coord": 10.5,
+            "y_coord": 14.4,
+            "lambda": 0.0,
+            "profit": 0.0
+        },
+        {
+            "x_coord": 18.0,
+            "y_coord": 15.9,
+            "lambda": 0.05254546158598927,
+            "profit": 40.0
+        },
+        {
+            "x_coord": 18.3,
+            "y_coord": 13.3,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 16.5,
+            "y_coord": 9.3,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 15.4,
+            "y_coord": 11.0,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 14.9,
+            "y_coord": 13.2,
+            "lambda": 0.0,
+            "profit": 5.0
+        },
+        {
+            "x_coord": 16.3,
+            "y_coord": 13.3,
+            "lambda": 0.0,
+            "profit": 5.0
+        },
+        {
+            "x_coord": 16.4,
+            "y_coord": 17.8,
+            "lambda": 0.0,
+            "profit": 5.0
+        },
+        {
+            "x_coord": 15.0,
+            "y_coord": 17.9,
+            "lambda": 0.0,
+            "profit": 5.0
+        },
+        {
+            "x_coord": 16.1,
+            "y_coord": 19.6,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 15.7,
+            "y_coord": 20.6,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 13.2,
+            "y_coord": 20.1,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 14.3,
+            "y_coord": 15.3,
+            "lambda": 0.0,
+            "profit": 5.0
+        },
+        {
+            "x_coord": 14.0,
+            "y_coord": 5.1,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 11.4,
+            "y_coord": 6.7,
+            "lambda": 0.0,
+            "profit": 15.0
+        },
+        {
+            "x_coord": 8.3,
+            "y_coord": 5.0,
+            "lambda": 0.0,
+            "profit": 15.0
+        },
+        {
+            "x_coord": 7.9,
+            "y_coord": 9.8,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 11.4,
+            "y_coord": 12.0,
+            "lambda": 0.0,
+            "profit": 5.0
+        },
+        {
+            "x_coord": 11.2,
+            "y_coord": 17.6,
+            "lambda": 0.0,
+            "profit": 5.0
+        },
+        {
+            "x_coord": 10.1,
+            "y_coord": 18.7,
+            "lambda": 0.0,
+            "profit": 5.0
+        },
+        {
+            "x_coord": 11.7,
+            "y_coord": 20.3,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 10.2,
+            "y_coord": 22.1,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 9.7,
+            "y_coord": 23.8,
+            "lambda": 0.050276520372572395,
+            "profit": 40.0
+        },
+        {
+            "x_coord": 10.1,
+            "y_coord": 26.4,
+            "lambda": 0.0,
+            "profit": 15.0
+        },
+        {
+            "x_coord": 7.4,
+            "y_coord": 24.0,
+            "lambda": 0.0,
+            "profit": 15.0
+        },
+        {
+            "x_coord": 8.2,
+            "y_coord": 19.9,
+            "lambda": 0.0622137052003478,
+            "profit": 60.0
+        },
+        {
+            "x_coord": 8.7,
+            "y_coord": 17.7,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 8.9,
+            "y_coord": 13.6,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 5.6,
+            "y_coord": 11.1,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 4.9,
+            "y_coord": 18.9,
+            "lambda": 0.0,
+            "profit": 10.0
+        },
+        {
+            "x_coord": 7.3,
+            "y_coord": 18.8,
+            "lambda": 0.0,
+            "profit": 10.0
+        }
+    ]
+}
