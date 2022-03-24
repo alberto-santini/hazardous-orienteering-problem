@@ -1,5 +1,7 @@
 # Hazardous Orienteering Problem
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6381846.svg)](https://doi.org/10.5281/zenodo.6381846)
+
 Code, instance generator, instance files and results for the Hazardous Orienteering Problem.
 
 The accompanying paper is [available on-line](https://santini.in/files/papers/santini-archetti-2022.pdf) and can be cited as follows:
