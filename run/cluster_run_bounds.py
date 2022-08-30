@@ -13,4 +13,4 @@ if __name__ == '__main__':
         script_filename = os.path.join(launchers_dir, f"launcher_bounds_{base}.sh")
 
         with open(script_filename, 'w') as f:
-            f.write(get_script_base(output_dir=output_dir, script='run_bounds.py', cmdline_args=instance, instance_base=base) + '\n')
+            f.write(get_script_base(output_dir=output_dir, script='run_bounds.py', cmdline_args=instance, instance_base=base, memcpu='16GB', timeout='16:00:00') + '\n')

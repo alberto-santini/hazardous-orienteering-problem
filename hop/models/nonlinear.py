@@ -1,3 +1,4 @@
+from argparse import ArgumentError
 from tkinter import E
 from hop.instance import Instance
 from hop.utils import get_cplex_so_path
@@ -17,16 +18,21 @@ import logging
 @dataclass
 class NonLinearModelResults(Results):
     obj_type: str
+    lift_mtz: bool
+    add_vi1: bool
+    add_vi2: bool
+    add_vi3: bool
+    add_vi4: bool
     integer_model: bool
     has_feasible_solution: bool
     original_obj: Optional[float]
     obj_bound: Optional[float]
 
     def csv_header(self) -> str:
-        return f"{super().csv_header()},obj_type,integer_model,has_feasible_solution,original_obj,obj_bound"
+        return f"{super().csv_header()},obj_type,lift_mtz,add_vi1,add_vi2,add_vi3,add_vi4,integer_model,has_feasible_solution,original_obj,obj_bound"
 
     def to_csv(self) -> str:
-        return f"{super().to_csv()},{self.obj_type},{self.integer_model},{self.has_feasible_solution},{self.original_obj},{self.obj_bound}"
+        return f"{super().to_csv()},{self.obj_type},{self.lift_mtz},{self.add_vi1},{self.add_vi2},{self.add_vi3},{self.add_vi4},{self.integer_model},{self.has_feasible_solution},{self.original_obj},{self.obj_bound}"
 
 
 class NonLinearModelObjectiveFunction(Enum):
@@ -44,8 +50,10 @@ class NonLinearModel:
         self.current_tour_insert = kwargs.get('current_tour_insert', None)
         self.current_tour_remove = kwargs.get('current_tour_remove', None)
         self.time_limit = kwargs.get('time_limit', 3600)
+        self.n_threads = kwargs.get('n_threads', 1)
         self.obj_type = kwargs.get('obj_type', NonLinearModelObjectiveFunction.ORIGINAL)
-        self.add_vi = kwargs.get('add_vi', True)
+
+        self.__read_constraints_args(**kwargs)
 
         if self.current_tour_insert is not None and self.current_tour_remove is not None:
             raise ValueError('Only one between current_tour_insert and current_tour_remove can be not None')
@@ -55,6 +63,30 @@ class NonLinearModel:
             self.__build_model_for_remove()
         else:
             self.__build_model()
+
+    def __read_constraints_args(self, **kwargs) -> None:
+        self.add_vi = kwargs.get('add_vi', False)
+        self.add_vi1 = False
+        self.add_vi2 = False
+        self.add_vi3 = False
+        self.add_vi4 = False
+
+        if self.add_vi:
+            self.add_vi1 = True
+            self.add_vi2 = True
+            self.add_vi3 = True
+            # This model does not support VI4
+
+        if 'add_vi1' in kwargs:
+            self.add_vi1 = kwargs.get('add_vi1')
+        if 'add_vi2' in kwargs:
+            self.add_vi2 = kwargs.get('add_vi2')
+        if 'add_vi3' in kwargs:
+            self.add_vi3 = kwargs.get('add_vi3')
+        if 'add_vi4' in kwargs:
+            raise ArgumentError('NonLinearModel does not support VI4')
+
+        self.lift_mtz = kwargs.get('lift_mtz', False)
 
     def __build_model_for_remove(self):
         assert self.current_tour_remove is not None
@@ -134,6 +166,12 @@ class NonLinearModel:
         def link_wy(model, i: int):
             if i == 0:
                 return penv.Constraint.Skip
+            elif self.lift_mtz:
+                rhs = sum(
+                    (self.instance.T[arc[1]] - self.instance.t[arc[1]][arc[0]] + self.instance.t[0][arc[0]]) * self.m.x[arc]
+                    for arc in self.m.a if arc[0] == i
+                )
+                return self.m.w[i] <= self.instance.T[i] * self.m.y[i] + rhs
             else:
                 return self.m.w[i] <= self.instance.T[i] * self.m.y[i]
         self.m.link_wy = penv.Constraint(self.m.v, rule=link_wy)
@@ -141,6 +179,21 @@ class NonLinearModel:
         def link_wx1(model, i: int, j: int):
             if i == 0 or j == 0:
                 return penv.Constraint.Skip
+            elif self.lift_mtz:
+                assert (i,j) in arcs
+                assert (j,i) in arcs
+                assert i != j
+
+                tij = self.instance.t[i][j]
+                tji = self.instance.t[j][i]
+
+                bigM = max((
+                    self.instance.t[i][0] - tij,
+                    self.instance.T[j] + tij,
+                    self.instance.T[i] - self.instance.t[j][0] + tij
+                ))
+
+                return self.m.w[i] >= self.m.w[j] + tij - bigM * (1 - self.m.x[i,j]) + (bigM - tij - tji) * self.m.x[j,i]
             else:
                 assert (i,j) in arcs
                 assert i != j
@@ -229,6 +282,12 @@ class NonLinearModel:
         def link_wy(model, i: int):
             if i == 0:
                 return penv.Constraint.Skip
+            elif self.lift_mtz:
+                rhs = sum(
+                    (self.instance.T[arc[1]] - self.instance.t[arc[1]][arc[0]] + self.instance.t[0][arc[0]]) * self.m.x[arc]
+                    for arc in self.m.a if arc[0] == i
+                )
+                return self.m.w[i] <= self.instance.T[i] * self.m.y[i] + rhs
             else:
                 return self.m.w[i] <= self.instance.T[i] * self.m.y[i]
         self.m.link_wy = penv.Constraint(self.m.v, rule=link_wy)
@@ -236,9 +295,24 @@ class NonLinearModel:
         def link_wx1(model, i: int, j: int):
             if i == 0 or j == 0:
                 return penv.Constraint.Skip
-            else:
-                assert i != j
+            elif self.lift_mtz:
                 assert (i,j) in arcs
+                assert (j,i) in arcs
+                assert i != j
+                
+                tij = self.instance.t[i][j]
+                tji = self.instance.t[j][i]
+
+                bigM = max((
+                    self.instance.t[i][0] - tij,
+                    self.instance.T[j] + tij,
+                    self.instance.T[i] - self.instance.t[j][0] + tij
+                ))
+
+                return self.m.w[i] >= self.m.w[j] + tij - bigM * (1 - self.m.x[i,j]) + (bigM - tij - tji) * self.m.x[j,i]
+            else:
+                assert (i,j) in arcs
+                assert i != j
                 bigM = self.instance.time_bound - self.instance.t[j][0] + self.instance.t[i][j]
                 return self.m.w[i] >= self.m.w[j] + self.instance.t[i][j] - bigM * (1 - self.m.x[i, j])
         self.m.link_wx1 = penv.Constraint(self.m.a, rule=link_wx1)
@@ -253,11 +327,12 @@ class NonLinearModel:
         self.m.y[0] = 1
         self.m.y[0].fixed = True
 
-        if self.add_vi:
+        if self.add_vi1:
             def vi1(model, i: int):
                 return self.m.w[i] >= sum(self.instance.t[arc[0]][arc[1]] * self.m.x[arc] for arc in self.m.a if arc[0] == i)
             self.m.vi1 = penv.Constraint(self.m.v, rule=vi1)
 
+        if self.add_vi2:
             def vi2(model, i: int):
                 if self.instance.l[i] > 0:
                     return penv.Constraint.Skip
@@ -265,6 +340,7 @@ class NonLinearModel:
                     return self.m.w[i] <= sum(self.instance.t[arc[0]][arc[1]] * self.m.x[arc] for arc in self.m.a) - self.instance.t[i][0]
             self.m.vi2 = penv.Constraint(self.m.v, rule=vi2)
 
+        if self.add_vi3:
             def vi3(model, i: int):
                 if self.instance.l[i] > 0 or (0, i) not in self.m.a:
                     return penv.Constraint.Skip
@@ -349,19 +425,33 @@ class NonLinearModel:
         optimiser = popt.SolverFactory('baron')
         optimiser.options['CplexLibName'] = get_cplex_so_path()
         optimiser.options['MaxTime'] = self.time_limit
+        optimiser.options['threads'] = self.n_threads
 
         start_time = time()
         res = optimiser.solve(self.m, tee=False)
         end_time = time()
 
         model_name = 'nonlinear_model' if self.obj_type == NonLinearModelObjectiveFunction.ORIGINAL else 'nonlinear_concave_model'
-        model_name += '_without_vi' if not self.add_vi else ''
+        if self.add_vi1:
+            model_name += '_with_vi1'
+        if self.add_vi2:
+            model_name += '_with_vi2'
+        if self.add_vi3:
+            model_name += '_with_vi3'
+        if self.lift_mtz:
+            model_name += "_liftMTZ"
 
-        if res.solver.status == penv.SolverStatus.ok and not (res.solver.termination_condition == penv.TerminationCondition.infeasible):
+        if (res.solver.status == penv.SolverStatus.ok or res.solver.status == penv.SolverStatus.warning) \
+           and not (res.solver.termination_condition == penv.TerminationCondition.infeasible):
             if self.solve_continuous:
                 return NonLinearModelResults(
                     instance=self.instance,
                     algorithm=f"continuous_{model_name}",
+                    lift_mtz=self.lift_mtz,
+                    add_vi1=self.add_vi1,
+                    add_vi2=self.add_vi2,
+                    add_vi3=self.add_vi3,
+                    add_vi4=self.add_vi4,
                     integer_model=False,
                     obj=res['problem'][0]['Upper bound'],
                     obj_type=('original' if self.obj_type == NonLinearModelObjectiveFunction.ORIGINAL else 'concave'),
@@ -394,6 +484,11 @@ class NonLinearModel:
             return NonLinearModelResults(
                 instance=self.instance,
                 algorithm=model_name,
+                lift_mtz=self.lift_mtz,
+                add_vi1=self.add_vi1,
+                add_vi2=self.add_vi2,
+                add_vi3=self.add_vi3,
+                add_vi4=self.add_vi4,
                 integer_model=True,
                 obj=res['problem'][0]['Lower bound'],
                 obj_type=('original' if self.obj_type == NonLinearModelObjectiveFunction.ORIGINAL else 'concave'),

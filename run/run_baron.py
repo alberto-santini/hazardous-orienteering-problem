@@ -16,6 +16,12 @@ if __name__ == '__main__':
 
     start_time = time()
 
+    params = dict(
+        concave=False, continuous=False,
+        add_vi1=True, lift_mtz=True,
+        time_limit=3600, n_threads=1
+    )
+
     for instance_num, instance_file in enumerate(instances):
         elapsed_time = time() - start_time
         print(f"Solving instance {instance_num+1}/{len(instances)} ({os.path.basename(instance_file)}). Elapsed time: {elapsed_time:.2f}. ", end='')
@@ -23,8 +29,8 @@ if __name__ == '__main__':
 
         instance = TsiligiridesInstance.load(filename=instance_file)
 
-        if already_solved(instance=instance, algorithm='nonlinear_model'):
+        if already_solved(instance=instance, algorithm='nonlinear_model_with_vi1_liftMTZ'):
             print('\tBaron results cached: skipping.')
         else:
-            results = run_nonlinear_baron(instance=instance, add_vi=True, time_limit=3600, concave=False)
+            results = run_nonlinear_baron(instance=instance, **params)
             write_results(results=results, instance=instance)

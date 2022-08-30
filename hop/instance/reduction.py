@@ -14,8 +14,11 @@ import pickle
 
 
 class InstanceReductor:
-    def __init__(self, instance: Instance, mapping: bidict = None):
+    def __init__(self, instance: Instance, mapping: bidict = None, **kwargs):
         self.old_instance = instance
+
+        self.time_limit = kwargs.get('time_limit', 300)
+        self.n_threads = kwargs.get('n_threads', 1)
 
         if mapping is None:
             self.env = None
@@ -80,8 +83,8 @@ class InstanceReductor:
         self.env.setParam('OutputFlag', 0)
         self.env.setParam('LogToConsole', 0)
         self.model = Model(env=self.env)
-        self.model.setParam(GRB.Param.TimeLimit, 300)
-        self.model.setParam('LazyConstraints', 1)
+        self.model.setParam(GRB.Param.TimeLimit, self.time_limit)
+        self.model.setParam(GRB.Param.LazyConstraints, self.n_threads)
 
         self.G = complete_graph(N=self.old_instance.n_vertices, self_loops=False, directed=True)
         self.include = self.G.new_vertex_property('bool')

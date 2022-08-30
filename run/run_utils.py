@@ -4,10 +4,11 @@ from glob import glob
 from textwrap import dedent
 from os.path import basename, splitext
 from hop.utils import get_solvers_libdir_paths
+from typing import List
 import os
 
 
-def already_solved(instance: TsiligiridesInstance, algorithm: str) -> bool:
+def existing_results_for(instance: TsiligiridesInstance, algorithm: str) -> List[str]:
     res_file = results_filename(algorithm=algorithm, instance=instance)
     res_dirname = os.path.dirname(res_file)
     res_basename = os.path.basename(res_file)
@@ -15,7 +16,11 @@ def already_solved(instance: TsiligiridesInstance, algorithm: str) -> bool:
     bn = '-'.join(res_basename.split('-')[6:])
     gl = os.path.join(os.path.realpath(res_dirname), f"*{bn}")
 
-    return len(glob(gl)) > 0
+    return list(glob(gl))
+
+
+def already_solved(instance: TsiligiridesInstance, algorithm: str) -> bool:
+    return len(existing_results_for(instance=instance, algorithm=algorithm)) > 0
 
 
 def cluster_get_pythonpath():

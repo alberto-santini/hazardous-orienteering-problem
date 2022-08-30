@@ -10,7 +10,7 @@ if __name__ == '__main__':
     for instance in glob(os.path.join(tsiligirides_hop_dir(), '*.json')):
         instance = os.path.realpath(instance)
         base = os.path.splitext(os.path.basename(instance))[0]
-        script_filename = os.path.join(launchers_dir, f"launcher_nonlinear_model_without_vi_{base}.sh")
+        script_filename = os.path.join(launchers_dir, f"launcher_fw_inequalities_test_{base}.sh")
 
         with open(script_filename, 'w') as f:
-            f.write(get_script_base(output_dir=output_dir, script='run_baron_without_vi.py', cmdline_args=instance, instance_base=base, timeout='01:30:00') + '\n')
+            f.write(get_script_base(output_dir=output_dir, script='run_fw_inequalities_test.py', cmdline_args=instance, instance_base=base, memcpu='16GB', timeout='08:00:00') + '\n')

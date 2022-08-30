@@ -5,7 +5,7 @@ from argparse import Namespace
 from time import strftime
 from glob import glob
 from random import sample
-from typing import Optional
+from typing import Optional, Dict
 from hop.instance import Instance
 from hop.instance.tsiligirides import TsiligiridesInstance
 from hop.results import Results
@@ -59,11 +59,11 @@ def run_ans(instance: Instance, args: Optional[Namespace] = None, params: Option
     return solver.solve()
 
 
-def run_frank_wolfe(instance: Instance, add_vi: bool) -> Results:
+def run_frank_wolfe(instance: Instance, **kwargs) -> Results:
     y_np = np.array([1.0] * 2 + [0] * (instance.n_vertices - 2))
     w_np = np.array([instance.t[0][1] + instance.t[1][0], instance.t[1][0]] + [0] * (instance.n_vertices - 2))
 
-    solver = FrankWolfe(instance=instance, add_vi=add_vi, initial_y=y_np, initial_w=w_np)
+    solver = FrankWolfe(instance=instance, initial_y=y_np, initial_w=w_np, **kwargs)
     return solver.solve()
 
 
@@ -79,32 +79,29 @@ def run_labelling_ssr2ce(instance: Instance, time_limit: float) -> Results:
     return relaxedtc_labelling(instance, time_limit=time_limit)
 
 
-def run_linear_ub(instance: Instance, add_vi: bool, time_limit: float) -> Results:
+def run_linear_ub(instance: Instance, **kwargs) -> Results:
     solver = LinearModel(
         instance=instance,
         obj_type=LinearModelObjectiveFunction.LINEAR_APPROX_LOOSE,
-        add_vi=add_vi,
-        time_limit=time_limit)
+        **kwargs)
     return solver.solve()
 
 
-def run_pw_linear_ub(instance: Instance, add_vi: bool, time_limit: float) -> Results:
+def run_pw_linear_ub(instance: Instance, **kwargs) -> Results:
     solver = LinearModel(
         instance=instance,
         obj_type=LinearModelObjectiveFunction.LINEAR_APPROX_TIGHT,
-        add_vi=add_vi,
-        time_limit=time_limit)
+        **kwargs)
     return solver.solve()
 
 
-def run_nonlinear_baron(instance: Instance, add_vi: bool, time_limit: float, concave: bool, continuous: bool) -> Results:
+def run_nonlinear_baron(instance: Instance, concave: bool, continuous: bool, **kwargs) -> Results:
     obj_type = NonLinearModelObjectiveFunction.CONCAVE if concave else NonLinearModelObjectiveFunction.ORIGINAL
     solver = NonLinearModel(
         instance=instance,
-        add_vi=add_vi,
-        time_limit=time_limit,
         obj_type=obj_type,
-        solve_continuous=continuous)
+        solve_continuous=continuous,
+        **kwargs)
     return solver.solve()
 
 
@@ -122,15 +119,42 @@ def write_results(results: Results, instance: Instance) -> None:
     results.save_csv(filename=results_filename(algorithm=results.algorithm, instance=instance))
 
 
+def read_constraints_args(args: Namespace) -> Dict[str, bool]:
+    constraints_args = {}
+
+    if args.lift_mtz:
+        constraints_args['lift_mtz'] = True
+
+    if args.add_vi:
+        constraints_args['add_vi'] = True
+        return constraints_args
+
+    if args.add_vi1:
+        constraints_args['add_vi1'] = True
+    if args.add_vi2:
+        constraints_args['add_vi2'] = True
+    if args.add_vi3:
+        constraints_args['add_vi3'] = True
+    if args.add_vi4:
+        constraints_args['add_vi4'] = True
+
+    return constraints_args
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Exact an heuristic methods for the Hazardous Orienteering Problem')
 
     parser.add_argument('--action', type=str, help='action to perform', choices=['ans', 'ans-tune', 'frank-wolfe', 'labelling-exact', 'labelling-ssr', 'labelling-ssr2ce', 'linearisation', 'pw-linearisation', 'baron'], action='store', required=True)
-    parser.add_argument('--threads', type=int, help='number of threads to use for parallel runs (only used during ANS parameter tuning)', default=4)
+    parser.add_argument('--threads', type=int, help='number of threads to use for parallel runs (used during ANS parameter tuning and by Gurobi)', default=4)
     parser.add_argument('--instance', type=str, help='instance to solve (compulsory for all actions except ans-tune)', action='store')
     parser.add_argument('--reduce', help='whether to reduce the instance', action='store_true')
     parser.add_argument('--time-limit', type=float, help='time limit in seconds (supported by actions: labelling-*, linearisation, pw-linearisation, baron)', action='store', default=3600)
-    parser.add_argument('--add-vi', help='wether to add valid inequalities (supported by actions: frank-wolfe, linearisation, pw-linearisation, baron', action='store_true')
+    parser.add_argument('--add-vi', help='wether to add all valid inequalities (supported by actions: frank-wolfe, linearisation, pw-linearisation, baron', action='store_true')
+    parser.add_argument('--add-vi1', help='wether to add valid inequality 1 (supported by actions: frank-wolfe, linearisation, pw-linearisation, baron', action='store_true')
+    parser.add_argument('--add-vi2', help='wether to add valid inequality 2 (supported by actions: frank-wolfe, linearisation, pw-linearisation, baron', action='store_true')
+    parser.add_argument('--add-vi3', help='wether to add valid inequality 3 (supported by actions: frank-wolfe, linearisation, pw-linearisation, baron', action='store_true')
+    parser.add_argument('--add-vi4', help='wether to add valid inequality 4 (supported by actions: frank-wolfe, linearisation, pw-linearisation', action='store_true')
+    parser.add_argument('--lift-mtz', help='wether to lift MTZ constraints (supported by actions: frank-wolfe, linearisation, pw-linearisation, baron', action='store_true')
 
     ans_args = parser.add_argument_group('ANS arguments')
     ans_args.add_argument('--mlt-improve-best', type=float, help='ans improve on best multiplier (only for action ans)')
@@ -162,12 +186,14 @@ if __name__ == '__main__':
     else:
         instance = original_instance
 
+    constraints_args = read_constraints_args(args)
+
     res = None
 
     if args.action == 'ans':
         res = run_ans(instance, args=args)
     elif args.action == 'frank-wolfe':
-        res = run_frank_wolfe(instance, add_vi=args.add_vi)
+        res = run_frank_wolfe(instance, **constraints_args)
     elif args.action == 'labelling-exact':
         res = run_labelling_exact(instance, time_limit=args.time_limit)
     elif args.action == 'labelling-ssr':
@@ -175,11 +201,13 @@ if __name__ == '__main__':
     elif args.action == 'labelling-ssr2ce':
         res = run_labelling_ssr2ce(instance, time_limit=args.time_limit)
     elif args.action == 'linearisation':
-        res = run_linear_ub(instance, add_vi=args.add_vi, time_limit=args.time_limit)
+        res = run_linear_ub(instance, time_limit=args.time_limit, n_threads=args.threads, **constraints_args)
     elif args.action == 'pw-linearisation':
-        res = run_pw_linear_ub(instance, add_vi=args.add_vi, time_limit=args.time_limit)
+        res = run_pw_linear_ub(instance, time_limit=args.time_limit, n_threads=args.threads, **constraints_args)
     elif args.action == 'baron':
-        res = run_nonlinear_baron(instance, add_vi=args.add_vi, time_limit=args.time_limit, concave=args.concave, continuous=args.continuous)
+        res = run_nonlinear_baron(
+            instance, time_limit=args.time_limit, concave=args.concave,
+            continuous=args.continuous, **constraints_args)
 
     if args.reduce:
         assert reductor is not None

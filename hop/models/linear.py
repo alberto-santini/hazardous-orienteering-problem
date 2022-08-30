@@ -8,6 +8,7 @@ from gurobipy import GRB, quicksum
 from graph_tool import Graph, GraphView
 from graph_tool.flow import boykov_kolmogorov_max_flow, min_st_cut
 from typing import Iterable, Optional, List
+from copy import deepcopy
 import numpy as np
 import logging
 
@@ -28,12 +29,17 @@ class LinearModelResults(Results):
     xvar: dict
     yvar: dict
     wvar: dict
+    lift_mtz: bool
+    add_vi1: bool
+    add_vi2: bool
+    add_vi3: bool
+    add_vi4:bool
 
     def csv_header(self) -> str:
-        return super().csv_header()
+        return f"{super().csv_header()},lift_mtz,add_vi1,add_vi2,add_vi3,add_vi4"
 
     def to_csv(self) -> str:
-        return super().to_csv()
+        return f"{super().to_csv()},{self.lift_mtz},{self.add_vi1},{self.add_vi2},{self.add_vi3},{self.add_vi4}"
 
 
 @dataclass
@@ -76,7 +82,9 @@ class LinearModel:
         self.integer = kwargs.get('integer', True)
         self.obj_type = kwargs.get('obj_type', LinearModelObjectiveFunction.ORIGINAL)
         self.time_limit = kwargs.get('time_limit', 60)
-        self.add_vi = kwargs.get('add_vi', True)
+        self.n_threads = kwargs.get('n_threads', 1)
+        
+        self.__read_constraints_args(**kwargs)
 
         logging.getLogger('gurobipy').setLevel(logging.WARNING)
 
@@ -85,6 +93,30 @@ class LinearModel:
 
         self.__build_graph_for_sec_separation()
         self.__build_model()
+
+    def __read_constraints_args(self, **kwargs) -> None:
+        self.add_vi = kwargs.get('add_vi', False)
+        self.add_vi1 = False
+        self.add_vi2 = False
+        self.add_vi3 = False
+        self.add_vi4 = False
+
+        if self.add_vi:
+            self.add_vi1 = True
+            self.add_vi2 = True
+            self.add_vi3 = True
+            self.add_vi4 = True
+
+        if 'add_vi1' in kwargs:
+            self.add_vi1 = kwargs.get('add_vi1')
+        if 'add_vi2' in kwargs:
+            self.add_vi2 = kwargs.get('add_vi2')
+        if 'add_vi3' in kwargs:
+            self.add_vi3 = kwargs.get('add_vi3')
+        if 'add_vi4' in kwargs:
+            self.add_vi4 = kwargs.get('add_vi4')
+
+        self.lift_mtz = kwargs.get('lift_mtz', False)
 
     def set_frank_wolfe_coeff(self, y_coeff: Iterable[float], w_coeff: Iterable[float], rebuild_obj: bool = True) -> None:
         self.y_coeff = y_coeff
@@ -132,9 +164,7 @@ class LinearModel:
 
         self.__build_obj_function()
         self.__build_constraints()
-
-        if self.add_vi:
-            self.__build_valid_inequalities()
+        self.__build_valid_inequalities()
 
     def __build_obj_function(self) -> None:
         if self.obj_type == LinearModelObjectiveFunction.ORIGINAL:
@@ -170,23 +200,58 @@ class LinearModel:
             (quicksum((self.x[int(j), i] for j in self.graph.vertex(i).in_neighbors())) == self.y[i]) for i in self.v), name='incoming')
         self.model.addConstr(
             quicksum((self.instance.t[i][j] * self.x[i, j]) for i, j in self.a) <= self.instance.time_bound, name='time_bound')
-        self.model.addConstrs((
-            (self.w[i] <= self.instance.T[i] * self.y[i]) for i in self.v0), name='link_w_y')
-        self.model.addConstrs((
-            self.w[i] >= self.w[j] + self.instance.t[i][j] - (self.instance.time_bound - self.instance.t[j][0] + self.instance.t[i][j]) * (1 - self.x[i, j]) for i, j in self.a if i != 0 and j != 0), name='link_w_x')
+        
+        if self.lift_mtz:
+            self.model.addConstrs((
+                (self.w[i] <= self.instance.T[i] * self.y[i] +
+                sum(
+                    (self.instance.T[arc[1]] - self.instance.t[arc[1]][arc[0]] + self.instance.t[0][arc[0]]) * self.x[arc]
+                    for arc in self.a if arc[0] == i
+                ))
+                for i in self.v0
+            ), name='link_w_y_lifted')
+
+            for i, j in self.a:
+                if i == 0 or j == 0:
+                    continue
+
+                tij = self.instance.t[i][j]
+                tji = self.instance.t[j][i]
+
+                bigM = max((
+                    self.instance.t[i][0] - tij,
+                    self.instance.T[j] + tij,
+                    self.instance.T[i] - self.instance.t[j][0] + tij
+                ))
+
+                self.model.addConstr((
+                    self.w[i] >= self.w[j] + tij - bigM * (1 - self.x[i,j]) + (bigM - tij - tji) * self.x[j,i]
+                ), name=f"link_w_x_lifted_{i}_{j}")
+        else:
+            self.model.addConstrs((
+                (self.w[i] <= self.instance.T[i] * self.y[i]) for i in self.v0), name='link_w_y')
+            self.model.addConstrs((
+                self.w[i] >= self.w[j] + self.instance.t[i][j] -
+                (self.instance.time_bound - self.instance.t[j][0] + self.instance.t[i][j]) * (1 - self.x[i, j])
+                for i, j in self.a if i != 0 and j != 0), name='link_w_x')
         self.model.addConstrs((self.w[i] >= self.instance.t[i][0] * self.x[i, 0] for i in self.v0 if (i,0) in self.a), name='link_w_x_depot')
 
     def __build_valid_inequalities(self) -> None:
-        self.model.addConstrs((self.w[i] >=
-                               quicksum((self.instance.t[i][int(j)] * self.x[i, int(j)]) for j in self.graph.vertex(i).out_neighbors()) for i in self.v),
-                              name='vi1')
-        self.model.addConstrs((self.w[i] <=
-                               quicksum((self.instance.t[j][k] * self.x[j, k]) for j, k in self.a) - self.instance.t[0][i] for i in self.v if self.instance.l[i] > 0),
-                              name='vi2')
-        bigM = {i: self.instance.tprime[i] - self.instance.t[0][i] for i in self.v}
-        self.model.addConstrs((self.w[i] <=
-                               quicksum((self.instance.t[j][k] * self.x[j,k]) for j, k in self.a) - self.instance.tprime[i] + bigM[i] * self.x[0,i] for i in self.v if self.instance.l[i] > 0 and (0,i) in self.a),
-                              name='vi3')
+        if self.add_vi1:
+            self.model.addConstrs((self.w[i] >=
+                                quicksum((self.instance.t[i][int(j)] * self.x[i, int(j)]) for j in self.graph.vertex(i).out_neighbors()) for i in self.v),
+                                name='vi1')
+
+        if self.add_vi2:
+            self.model.addConstrs((self.w[i] <=
+                                quicksum((self.instance.t[j][k] * self.x[j, k]) for j, k in self.a) - self.instance.t[0][i] for i in self.v if self.instance.l[i] > 0),
+                                name='vi2')
+
+        if self.add_vi3:
+            bigM = {i: self.instance.tprime[i] - self.instance.t[0][i] for i in self.v}
+            self.model.addConstrs((self.w[i] <=
+                                quicksum((self.instance.t[j][k] * self.x[j,k]) for j, k in self.a) - self.instance.tprime[i] + bigM[i] * self.x[0,i] for i in self.v if self.instance.l[i] > 0 and (0,i) in self.a),
+                                name='vi3')
 
     def __sol_int_get_next_vertex(self, i: int) -> Optional[int]:
         for j in self.graph.vertex(i).out_neighbors():
@@ -302,16 +367,34 @@ class LinearModel:
 
     def __solve_integer(self) -> IntegerLinearModelResults:
         def callback(model, where):
-            if where == GRB.Callback.MIPNODE and self.model.cbGet(GRB.Callback.MIPNODE_STATUS) == GRB.OPTIMAL:
+            if where == GRB.Callback.MIPNODE and self.model.cbGet(GRB.Callback.MIPNODE_STATUS) == GRB.OPTIMAL and self.add_vi4:
                 self.__cb_cont_separate()
 
         self.model.setParam(GRB.Param.TimeLimit, self.time_limit)
-        self.model.setParam('LazyConstraints', 1)
+        self.model.setParam(GRB.Param.Threads, self.n_threads)
+        self.model.setParam(GRB.Param.LazyConstraints, 1)
         self.model.optimize(callback)
+
+        alg_name = f"integer_linear_model_{self.obj_type}"
+        if self.add_vi1:
+            alg_name += '_with_vi1'
+        if self.add_vi2:
+            alg_name += '_with_vi2'
+        if self.add_vi3:
+            alg_name += '_with_vi3'
+        if self.add_vi4:
+            alg_name += '_with_vi4'
+        if self.lift_mtz:
+            alg_name += "_liftMTZ"
 
         return IntegerLinearModelResults(
             instance=self.instance,
-            algorithm=f"integer_linear_model_{self.obj_type}",
+            algorithm=alg_name,
+            lift_mtz=self.lift_mtz,
+            add_vi1=self.add_vi1,
+            add_vi2=self.add_vi2,
+            add_vi3=self.add_vi3,
+            add_vi4=self.add_vi4,
             tour_object=Tour(instance=self.instance, tour=self.__sol_int_get_subtour_starting_at(0) + [0]),
             obj=self.model.getAttr(GRB.Attr.ObjVal),
             obj_bound=self.model.getAttr(GRB.Attr.ObjBound),
@@ -324,10 +407,13 @@ class LinearModel:
 
     def __solve_continuous(self) -> ContinuousLinearModelResults:
         elapsed_time = 0.0
+        previous_iteration_subtours = list()
         cutting_planes_iterations = 0
 
+        self.model.setParam(GRB.Param.Threads, self.n_threads)
+
         while True:
-            self.model.setParam(GRB.Param.TimeLimit, self.time_limit - elapsed_time)
+            self.model.setParam(GRB.Param.TimeLimit, max(self.time_limit - elapsed_time, 0))
             self.model.optimize()
             cutting_planes_iterations += 1
 
@@ -337,9 +423,16 @@ class LinearModel:
                 self.model.write(f"Infeasible_LP_{self.obj_type}.lp")
                 raise RuntimeError('Gurobi linear model infeasible!')
 
+            if not self.add_vi4: # If no subtour elimination, quit
+                break
+
             subtours = self.__sol_cont_separate()
 
             if len(subtours) == 0:
+                break
+
+            if subtours == previous_iteration_subtours:
+                print('Numerical error: same subtours in two consecutive iterations!')
                 break
 
             for subtour in subtours:
@@ -348,14 +441,33 @@ class LinearModel:
                 for k in subtour:
                     self.model.addConstr(quicksum(self.x[i, j] for i in subtour for j in not_subtour if (i,j) in self.a) >= self.y[k])
 
+            previous_iteration_subtours = deepcopy(subtours)
+
             elapsed_time += self.model.getAttr(GRB.Attr.Runtime)
 
         yvar_vector = [self.y[i].getAttr(GRB.Attr.X) if i in self.v else 0 for i in range(self.instance.n_vertices)]
         wvar_vector = [self.w[i].getAttr(GRB.Attr.X) if i in self.v else 0 for i in range(self.instance.n_vertices)]
+        
+        alg_name = f"continuous_linear_model_{self.obj_type}"
+        if self.add_vi1:
+            alg_name += '_with_vi1'
+        if self.add_vi2:
+            alg_name += '_with_vi2'
+        if self.add_vi3:
+            alg_name += '_with_vi3'
+        if self.add_vi4:
+            alg_name += '_with_vi4'
+        if self.lift_mtz:
+            alg_name += "_liftMTZ"
 
         return ContinuousLinearModelResults(
             instance=self.instance,
-            algorithm=f"continuous_linear_model_{self.obj_type}",
+            algorithm=alg_name,
+            lift_mtz=self.lift_mtz,
+            add_vi1=self.add_vi1,
+            add_vi2=self.add_vi2,
+            add_vi3=self.add_vi3,
+            add_vi4=self.add_vi4,
             tour_object=None,
             obj=self.model.getAttr(GRB.Attr.ObjVal),
             time_s=self.model.getAttr(GRB.Attr.Runtime),
