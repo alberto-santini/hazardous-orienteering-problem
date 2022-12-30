@@ -6,25 +6,28 @@ Code, instance generator, instance files and results for the Hazardous Orienteer
 
 The accompanying paper is [available on-line](https://santini.in/files/papers/santini-archetti-2022.pdf) and can be cited as follows:
 
-```
-@techreport{hop,
+```bib
+@article{Santini_Archetti_2022,
     author={Santini, Alberto and Archetti, Claudia},
     title={The Hazardous Orienteering Problem},
     year=2022,
+    journal={Networks},
+    doi={10.1002/net.22129},
     url={https://santini.in/files/papers/santini-archetti-2022.pdf}
 }
 ```
 
 You can cite this repository itself via Zenodo:
 
-```
-@article{hop_2022,
-    title={Repository hazardous-orienteering-problem},
-    author={Alberto Santini},
+```bib
+@misc{hop_2022,
+    title={Code and instances for the Hazardous Orienteering Problem},
+    author={Santini, Alberto},
+    date=2022-08-30,
     year=2022,
     doi={10.5281/zenodo.6381846},
     url={https://github.com/alberto-santini/hazardous-orienteering-problem},
-    abstractNote={Code and instances for the Hazardous Orienteering Problem}
+    howpublished={Github repository},
 }
 ```
 
