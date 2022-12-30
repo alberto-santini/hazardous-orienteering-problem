@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Santini"
+  given-names: "Alberto"
+  orcid: "https://orcid.org/0000-0002-0440-0357"
+title: "Code and instances for the Hazardous Orienteering Problem"
+version: 1.1
+doi: 10.5281/zenodo.6381846
+date-released: 2020-08-30
+url: https://github.com/alberto-santini/hazardous-orienteering-problem
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Santini"
+    given-names: "Alberto"
+    orcid: "https://orcid.org/0000-0002-0440-0357"
+  - familiy-names: "Archetti"
+    given-names: "Claudia"
+  doi: 10.1002/net.22129
+  journal: "Networks"
+  title: "The Hazardous Orienteering Problem"
+  year: 2022
