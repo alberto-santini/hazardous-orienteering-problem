@@ -7,12 +7,14 @@ Code, instance generator, instance files and results for the Hazardous Orienteer
 The accompanying paper is [available on-line](https://santini.in/files/papers/santini-archetti-2022.pdf) and can be cited as follows:
 
 ```bib
-@article{Santini_Archetti_2022,
+@article{Santini_Archetti_2023,
     author={Santini, Alberto and Archetti, Claudia},
     title={The Hazardous Orienteering Problem},
-    year=2022,
+    year=2023,
     journal={Networks},
     doi={10.1002/net.22129},
+    volume=81,
+    pages={235--252},
     url={https://santini.in/files/papers/santini-archetti-2022.pdf}
 }
 ```
