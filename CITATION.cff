@@ -17,7 +17,10 @@ preferred-citation:
     orcid: "https://orcid.org/0000-0002-0440-0357"
   - family-names: "Archetti"
     given-names: "Claudia"
-  doi: 10.1002/net.22129
+  doi: "10.1002/net.22129"
   journal: "Networks"
+  volume: 81
+  start: 235
+  end: 252
   title: "The Hazardous Orienteering Problem"
-  year: 2022
+  year: 2023
