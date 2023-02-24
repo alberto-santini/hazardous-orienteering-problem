@@ -1,8 +1,11 @@
+![Cash transport vehicle](cash-in-transit.jpeg)
+<sub><sub>Cash-in-transit is a possible application area of the Hazardous Orienteering Problem. Picture by Wikimedia user kelp, distributed under License Attribution 2.0 Generic (CC BY 2.0).</sub></sub>
+
 # Hazardous Orienteering Problem
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6381846.svg)](https://doi.org/10.5281/zenodo.6381846)
-
 Code, instance generator, instance files and results for the Hazardous Orienteering Problem.
+
+## Citation
 
 The accompanying paper is [available on-line](https://santini.in/files/papers/santini-archetti-2022.pdf) and can be cited as follows:
 
@@ -19,7 +22,9 @@ The accompanying paper is [available on-line](https://santini.in/files/papers/sa
 }
 ```
 
-You can cite this repository itself via Zenodo:
+You can cite this repository itself via Zenodo.
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6381846.svg)](https://doi.org/10.5281/zenodo.6381846)
 
 ```bib
 @misc{hop_2022,
